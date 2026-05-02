@@ -1,0 +1,512 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微信红包领取</title>
+    <script src="./axios.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background-color: rgba(255, 255, 255, 0.95);
+            width: 100%;
+            max-width: 500px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            text-align: center;
+        }
+        
+        .header {
+            background: linear-gradient(90deg, #e74c3c, #e67e22);
+            color: white;
+            padding: 30px 20px;
+            position: relative;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .header .remaining {
+            background-color: white;
+            color: #e74c3c;
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .content {
+            padding: 30px 20px;
+        }
+        
+        .red-envelope {
+            width: 200px;
+            height: 220px;
+            margin: 0 auto 25px;
+            background: linear-gradient(145deg, #e74c3c, #c0392b);
+            border-radius: 10px;
+            position: relative;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #f1c40f;
+            transition: transform 0.3s ease;
+        }
+        
+        .red-envelope:hover {
+            transform: translateY(-5px);
+        }
+        
+        .red-envelope::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px 10px 0 0;
+        }
+        
+        .amount {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 15px 0;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .yuan {
+            font-size: 24px;
+            position: relative;
+            top: -20px;
+        }
+        
+        .info {
+            background-color: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        .info-item {
+            margin: 12px 0;
+            display: flex;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #7f8c8d;
+            width: 100px;
+        }
+        
+        .info-value {
+            flex: 1;
+            color: #2c3e50;
+        }
+        
+        .btn-receive {
+            background: linear-gradient(90deg, #2ecc71, #27ae60);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 12px rgba(46, 204, 113, 0.4);
+            transition: all 0.3s ease;
+            margin: 15px 0;
+            width: 80%;
+            max-width: 300px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-receive:disabled {
+            background: linear-gradient(90deg, #bdc3c7, #95a5a6);
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        
+        .btn-receive:not(:disabled):hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(46, 204, 113, 0.5);
+        }
+        
+        .btn-receive:not(:disabled):active {
+            transform: translateY(1px);
+        }
+        
+        .progress-container {
+            width: 100%;
+            background-color: #ecf0f1;
+            height: 12px;
+            border-radius: 10px;
+            margin: 25px 0 15px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #2ecc71, #3498db);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+        
+        .status {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+        
+        .success-message {
+            color: #27ae60;
+            font-weight: bold;
+            margin: 15px 0;
+            display: none;
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            font-weight: bold;
+            margin: 15px 0;
+            display: none;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            display: none;
+        }
+        
+        .empty-state h3 {
+            color: #e74c3c;
+            margin-bottom: 20px;
+        }
+        
+        .animation-pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .gold-text {
+            background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>微信红包领取</h1>
+            <p>祝您领取愉快，好运连连</p>
+            <div class="remaining">剩余红包数: <span id="remaining-count">0</span></div>
+        </div>
+        
+        <div class="content">
+            <div id="red-envelope" class="red-envelope animation-pulse">
+                <div class="yuan">¥</div>
+                <div class="amount" id="redpacket-amount">0.00</div>
+                <div>微信红包</div>
+            </div>
+            
+            <div class="info">
+                <div class="info-item">
+                    <div class="info-label" style="display:none"></div>
+                    <div class="info-value" id="platform-name">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">课程:</div>
+                    <div class="info-value" id="lesson-name">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">红包状态:</div>
+                    <div class="info-value" id="packet-status">等待领取</div>
+                </div>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+            </div>
+            
+            <div class="status" id="progress-text">0/0</div>
+            
+            <button id="receive-btn" class="btn-receive">领取红包</button>
+            
+            <div id="success-message" class="success-message">
+                红包领取成功！请前往微信钱包查看
+            </div>
+            
+            <div id="error-message" class="error-message">
+                红包领取失败，可点击跳过
+            </div>
+        </div>
+        
+        <div id="empty-state" class="empty-state">
+            <h3>🎉 恭喜您！</h3>
+            <p>您已成功领取所有红包</p>
+            <p class="gold-text">感谢您的参与，祝您生活愉快！</p>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // 全局变量
+            let redPackets = [];
+            let currentIndex = 0;
+            
+            // DOM元素
+            const $remainingCount = $('#remaining-count');
+            const $redpacketAmount = $('#redpacket-amount');
+            const $platformName = $('#platform-name');
+            const $lessonName = $('#lesson-name');
+            const $packetStatus = $('#packet-status');
+            const $receiveBtn = $('#receive-btn');
+            const $successMessage = $('#success-message');
+            const $errorMessage = $('#error-message');
+            const $progressBar = $('#progress-bar');
+            const $progressText = $('#progress-text');
+            const $emptyState = $('#empty-state');
+            const $redEnvelope = $('#red-envelope');
+            
+            // 初始化：从URL获取datakey参数
+            function getUrlParameter(name) {
+                name = name.replace(/[\[\]]/g, '\\$&');
+                const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
+                const results = regex.exec(window.location.href);
+                if (!results) return null;
+                if (!results[2]) return '';
+                return decodeURIComponent(results[2].replace(/\+/g, ' '));
+            }
+            
+            // 加载红包数据
+            function loadRedPackets() {
+                const datakey = getUrlParameter('datakey');
+                if (!datakey) {
+                    showError('缺少datakey参数');
+                    return;
+                }
+                
+                // 显示加载状态
+                $receiveBtn.prop('disabled', true).text('加载中...');
+                
+                axios.get('https://textdb.online/'+datakey,{
+                    timeout:60000
+                })
+                .then(response => {
+                    if (response.data && Array.isArray(response.data)) {
+                        redPackets = response.data;
+                        if (redPackets.length === 0) {
+                            showEmptyState();
+                        } else {
+                            updateUI();
+                        }
+                    } else {
+                        showError('无效的数据格式');
+                    }
+                })
+                .catch(error => {
+                    console.error('获取红包数据失败:', error);
+                    showError('获取红包数据失败，请重试');
+                });
+            }
+            
+            // 更新UI显示当前红包信息
+            function updateUI() {
+                if (currentIndex >= redPackets.length) {
+                    $remainingCount.text(0);
+                    showEmptyState();
+                    return;
+                }
+                
+                const currentPacket = redPackets[currentIndex];
+                const amount = parseFloat(currentPacket.data.redPacketAmount);
+                $remainingCount.text(redPackets.length - currentIndex);
+                $redpacketAmount.text(amount.toFixed(2));
+                $platformName.text(currentPacket.platformName);
+                $lessonName.text(currentPacket.schoolLessonName);
+                $packetStatus.text('等待领取').css('color', '#e67e22');
+                
+                // 更新进度
+                const progress = ((currentIndex) / redPackets.length) * 100;
+                $progressBar.css('width', progress + '%');
+                $progressText.text(`${currentIndex}/${redPackets.length}`);
+                
+                // 启用按钮
+                $receiveBtn.prop('disabled', false).text('领取红包');
+                $successMessage.hide();
+                $errorMessage.hide();
+                
+                // 红包金额样式
+                if (amount >= 0.5) {
+                    $redpacketAmount.css({
+                        'font-size': '54px',
+                        'color': '#e74c3c'
+                    });
+                } else {
+                    $redpacketAmount.css({
+                        'font-size': '48px',
+                        'color': '#f1c40f'
+                    });
+                }
+            }
+            
+            // 显示空状态
+            function showEmptyState() {
+                $emptyState.show();
+                $('.remaining').hide();
+                $('.content').hide();
+                $('.header').css({
+                    'background': 'linear-gradient(90deg, #2ecc71, #3498db)'
+                });
+            }
+            
+            // 显示错误
+            function showError(message) {
+                $errorMessage.text(message).show();
+                $receiveBtn.prop('disabled', true).text('无法领取');
+            }
+            
+            // 领取红包
+            function receiveRedPacket() {
+                if (currentIndex >= redPackets.length) {
+                    showEmptyState();
+                    return;
+                }
+                
+                const currentPacket = redPackets[currentIndex];
+                const { mchId, appId, wxPackage } = currentPacket.data;
+                var package=wxPackage.replace(/[\s]/g,"+");
+                console.log(mchId);
+                console.log(appId);
+                console.log(wxPackage);
+                console.log(package);
+                
+                // 显示领取中状态
+                $receiveBtn.prop('disabled', true).text('领取中...');
+                $packetStatus.text('处理中...').css('color', '#3498db');
+
+                if (typeof WeixinJSBridge == "undefined") {
+                    // 模拟微信支付请求
+                    setTimeout(() => {
+                        // 在实际应用中，这里应该调用微信的requestMerchantTransfer API
+                        // 模拟成功或失败
+                        const isSuccess = Math.random() > 0.5; // 80%成功率
+                        
+                        if (isSuccess) {
+                            $successMessage.show();
+                            $packetStatus.text('模拟领取成功').css('color', '#27ae60');
+                            
+                            // 显示动画效果
+                            $redEnvelope.addClass('animation-pulse');
+                            setTimeout(() => {
+                                $redEnvelope.removeClass('animation-pulse');
+                            }, 600);
+                            
+                            // 移动到下一个红包
+                            setTimeout(() => {
+                                currentIndex++;
+                                updateUI();
+                            }, 1000);
+                        } else {
+                            $errorMessage.show();
+                            $packetStatus.text('模拟领取失败').css('color', '#e74c3c');
+                            $receiveBtn.prop('disabled', false).text('重新模拟领取');
+                        }
+                    }, 1500);
+                }else{
+                    WeixinJSBridge.invoke('requestMerchantTransfer', {
+                            mchId: mchId,
+                            appId: appId,
+                            package: package
+                        },
+                        function(res) {
+                            var msg = res.err_msg;
+                            if (msg=="requestMerchantTransfer:ok"||msg=="requestMerchantTransfer:fail") {
+                                //展示页面成功，并不代表付款成功
+                                $successMessage.show();
+                                $packetStatus.text('领取成功').css('color', '#27ae60');
+                                
+                                // 显示动画效果
+                                $redEnvelope.addClass('animation-pulse');
+                                setTimeout(() => {
+                                    $redEnvelope.removeClass('animation-pulse');
+                                }, 600);
+                                
+                                // 移动到下一个红包
+                                setTimeout(() => {
+                                    currentIndex++;
+                                    updateUI();
+                                }, 1000);
+                            }else if (msg == "requestMerchantTransfer:fail"){
+                                //展示页面失败
+                                $errorMessage.show();
+                                $packetStatus.text('领取失败').css('color', '#e74c3c');
+                                $receiveBtn.prop('disabled', false).text('重新领取');
+                            }else if(msg == "requestMerchantTransfer:cancel"){
+                                //用户取消。发生场景：用户未确认收款，点击取消，返回APP
+                                $errorMessage.show();
+                                $packetStatus.text('取消领取').css('color', '#e74c3c');
+                                $receiveBtn.prop('disabled', false).text('重新领取');
+                            }else {
+                                $errorMessage.show();
+                                $packetStatus.text('领取出错了').css('color', '#e74c3c');
+                                $receiveBtn.prop('disabled', false).text('重新领取');
+                            }
+                        }
+                    );
+                }
+            }
+
+            // 切换下一个红包
+            function receiveRedNextPacket() {
+                currentIndex++;
+                updateUI();
+            }
+            
+            // 绑定事件
+            $receiveBtn.on('click', receiveRedPacket);
+            $errorMessage.on('click', receiveRedNextPacket);
+            $remainingCount.on('click', receiveRedNextPacket);
+            
+            // 页面初始化
+            loadRedPackets();
+        });
+    </script>
+</body>
+</html>
